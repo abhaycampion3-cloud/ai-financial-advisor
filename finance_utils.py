@@ -38,7 +38,7 @@ portfolio_chain = portfolio_prompt | llm
 
 def get_stock_data(ticker):
     stock = yf.Ticker(ticker)
-    data = stock.history(period="1y")
+    data = stock.history(period="5y")
     return data
 
 def parse_portfolio(text):
@@ -94,7 +94,8 @@ def get_portfolio_data(portfolio):
 
 def calculate_portfolio_metrics(data, portfolio):
     
-    total_value = sum(portfolio.values())
+    # Only sum the values of stocks that successfully downloaded
+    total_value = sum(portfolio[stock] for stock in data)
     
     weights = {}
     returns = {}
@@ -141,18 +142,26 @@ def analyze_portfolio(chain, portfolio_return, portfolio_risk, weights):
 def run_portfolio_analysis(user_input_text):
     
     portfolio = parse_portfolio(user_input_text)
-    
     data = get_portfolio_data(portfolio)
-    
     portfolio_return, portfolio_risk, weights = calculate_portfolio_metrics(data, portfolio)
     
+    # 1. Annualize the metrics for the AI
+    annual_return = portfolio_return * 252
+    annual_risk = portfolio_risk * (252**0.5)
+    
+    # 2. Format them nicely as percentages so the LLM doesn't get confused
+    formatted_return = f"{annual_return:.2%}"
+    formatted_risk = f"{annual_risk:.2%}"
+    
+    # 3. Pass the clean, annualized strings to the AI Prompt
     analysis = analyze_portfolio(
         portfolio_chain,
-        portfolio_return,
-        portfolio_risk,
+        formatted_return, 
+        formatted_risk,
         weights
     )
     
+    # 4. Return the raw metrics to app.py so the UI math still works perfectly
     return {
         "portfolio_return": portfolio_return,
         "portfolio_risk": portfolio_risk,
