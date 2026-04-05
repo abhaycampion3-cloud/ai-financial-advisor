@@ -6,3 +6,4 @@ python-dotenv
 langchain
 langchain-core
 langchain-groq
+plotly
